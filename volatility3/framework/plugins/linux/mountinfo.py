@@ -36,8 +36,7 @@ class MountInfo(plugins.PluginInterface):
     """Lists mount points on processes mount namespaces"""
 
     _required_framework_version = (2, 2, 0)
-
-    _version = (1, 2, 1)
+    _version = (1, 2, 2)
 
     @classmethod
     def get_requirements(cls) -> List[interfaces.configuration.RequirementInterface]:
@@ -48,7 +47,7 @@ class MountInfo(plugins.PluginInterface):
                 architectures=["Intel32", "Intel64"],
             ),
             requirements.PluginRequirement(
-                name="pslist", plugin=pslist.PsList, version=(2, 0, 0)
+                name="pslist", plugin=pslist.PsList, version=(3, 0, 0)
             ),
             requirements.VersionRequirement(
                 name="linuxutils", component=linux.LinuxUtilities, version=(2, 1, 0)

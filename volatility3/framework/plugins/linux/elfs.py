@@ -25,7 +25,7 @@ class Elfs(plugins.PluginInterface):
     """Lists all memory mapped ELF files for all processes."""
 
     _required_framework_version = (2, 0, 0)
-    _version = (2, 0, 1)
+    _version = (2, 0, 2)
 
     @classmethod
     def get_requirements(cls) -> List[interfaces.configuration.RequirementInterface]:
@@ -36,7 +36,7 @@ class Elfs(plugins.PluginInterface):
                 architectures=["Intel32", "Intel64"],
             ),
             requirements.PluginRequirement(
-                name="pslist", plugin=pslist.PsList, version=(2, 0, 0)
+                name="pslist", plugin=pslist.PsList, version=(3, 0, 0)
             ),
             requirements.ListRequirement(
                 name="pid",

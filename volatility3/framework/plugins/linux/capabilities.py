@@ -50,8 +50,7 @@ class Capabilities(plugins.PluginInterface):
     """Lists process capabilities"""
 
     _required_framework_version = (2, 0, 0)
-
-    _version = (1, 0, 0)
+    _version = (1, 0, 1)
 
     @classmethod
     def get_requirements(cls) -> List[interfaces.configuration.RequirementInterface]:
@@ -62,7 +61,7 @@ class Capabilities(plugins.PluginInterface):
                 architectures=["Intel32", "Intel64"],
             ),
             requirements.PluginRequirement(
-                name="pslist", plugin=pslist.PsList, version=(2, 0, 0)
+                name="pslist", plugin=pslist.PsList, version=(3, 0, 0)
             ),
             requirements.ListRequirement(
                 name="pids",
@@ -87,7 +86,7 @@ class Capabilities(plugins.PluginInterface):
         try:
             kernel_cap_last_cap = vmlinux.object_from_symbol(symbol_name="cap_last_cap")
         except exceptions.SymbolError:
-            # It should be a kernel < 3.2
+            # It should be a kernel < 3.2 See 73efc0394e148d0e15583e13712637831f926720
             return None
 
         vol2_last_cap = extensions.kernel_cap_struct.get_last_cap_value()

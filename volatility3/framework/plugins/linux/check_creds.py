@@ -12,8 +12,7 @@ class Check_creds(interfaces.plugins.PluginInterface):
     """Checks if any processes are sharing credential structures"""
 
     _required_framework_version = (2, 0, 0)
-
-    _version = (2, 0, 0)
+    _version = (2, 0, 1)
 
     @classmethod
     def get_requirements(cls):
@@ -24,7 +23,7 @@ class Check_creds(interfaces.plugins.PluginInterface):
                 architectures=["Intel32", "Intel64"],
             ),
             requirements.PluginRequirement(
-                name="pslist", plugin=pslist.PsList, version=(2, 0, 0)
+                name="pslist", plugin=pslist.PsList, version=(3, 0, 0)
             ),
         ]
 

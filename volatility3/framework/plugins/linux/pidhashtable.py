@@ -19,8 +19,7 @@ class PIDHashTable(plugins.PluginInterface):
     """Enumerates processes through the PID hash table"""
 
     _required_framework_version = (2, 0, 0)
-
-    _version = (1, 0, 1)
+    _version = (1, 0, 2)
 
     @classmethod
     def get_requirements(cls) -> List[interfaces.configuration.RequirementInterface]:
@@ -31,7 +30,7 @@ class PIDHashTable(plugins.PluginInterface):
                 architectures=["Intel32", "Intel64"],
             ),
             requirements.PluginRequirement(
-                name="pslist", plugin=pslist.PsList, version=(2, 0, 0)
+                name="pslist", plugin=pslist.PsList, version=(3, 0, 0)
             ),
             requirements.VersionRequirement(
                 name="linuxutils", component=linux.LinuxUtilities, version=(2, 1, 0)
@@ -236,8 +235,8 @@ class PIDHashTable(plugins.PluginInterface):
         self, decorate_comm: bool = False
     ) -> interfaces.objects.ObjectInterface:
         for task in self.get_tasks():
-            offset, pid, tid, ppid, name = pslist.PsList.get_task_fields(
-                task, decorate_comm
+            offset, pid, tid, ppid, name, _creation_time = (
+                pslist.PsList.get_task_fields(task, decorate_comm)
             )
             fields = format_hints.Hex(offset), pid, tid, ppid, name
             yield 0, fields

@@ -15,6 +15,7 @@ class PsAux(plugins.PluginInterface):
     """Lists processes with their command line arguments"""
 
     _required_framework_version = (2, 0, 0)
+    _version = (1, 0, 1)
 
     @classmethod
     def get_requirements(cls):
@@ -26,7 +27,7 @@ class PsAux(plugins.PluginInterface):
                 architectures=["Intel32", "Intel64"],
             ),
             requirements.PluginRequirement(
-                name="pslist", plugin=pslist.PsList, version=(2, 0, 0)
+                name="pslist", plugin=pslist.PsList, version=(3, 0, 0)
             ),
             requirements.ListRequirement(
                 name="pid",

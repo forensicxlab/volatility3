@@ -12,6 +12,7 @@ from volatility3.framework.interfaces import plugins
 from volatility3.framework.objects import utility
 from volatility3.framework.symbols import linux
 from volatility3.plugins.linux import lsof
+from volatility3.plugins.linux import pslist
 
 
 vollog = logging.getLogger(__name__)
@@ -21,7 +22,6 @@ class SockHandlers(interfaces.configuration.VersionableInterface):
     """Handles several socket families extracting the sockets information."""
 
     _required_framework_version = (2, 0, 0)
-
     _version = (3, 0, 0)
 
     def __init__(self, vmlinux, task, *args, **kwargs):
@@ -438,8 +438,7 @@ class Sockstat(plugins.PluginInterface):
     """Lists all network connections for all processes."""
 
     _required_framework_version = (2, 0, 0)
-
-    _version = (3, 0, 0)
+    _version = (3, 0, 1)
 
     @classmethod
     def get_requirements(cls):
@@ -454,6 +453,9 @@ class Sockstat(plugins.PluginInterface):
             ),
             requirements.PluginRequirement(
                 name="lsof", plugin=lsof.Lsof, version=(2, 0, 0)
+            ),
+            requirements.PluginRequirement(
+                name="pslist", plugin=pslist.PsList, version=(3, 0, 0)
             ),
             requirements.VersionRequirement(
                 name="linuxutils", component=linux.LinuxUtilities, version=(2, 0, 0)
@@ -591,7 +593,7 @@ class Sockstat(plugins.PluginInterface):
             tasks: String with a list of tasks and FDs using a socket. It can also have
                    extended information such as socket filters, bpf info, etc.
         """
-        filter_func = lsof.pslist.PsList.create_pid_filter(pids)
+        filter_func = pslist.PsList.create_pid_filter(pids)
         socket_generator = self.list_sockets(
             self.context, symbol_table, filter_func=filter_func
         )

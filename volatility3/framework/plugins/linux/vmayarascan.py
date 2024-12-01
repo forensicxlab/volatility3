@@ -2,6 +2,7 @@
 # which is available at https://www.volatilityfoundation.org/license/vsl-v1.0
 #
 
+import logging
 from typing import Iterable, List, Tuple
 
 from volatility3.framework import interfaces, renderers
@@ -10,12 +11,14 @@ from volatility3.framework.renderers import format_hints
 from volatility3.plugins import yarascan
 from volatility3.plugins.linux import pslist
 
+vollog = logging.getLogger(__name__)
+
 
 class VmaYaraScan(interfaces.plugins.PluginInterface):
     """Scans all virtual memory areas for tasks using yara."""
 
     _required_framework_version = (2, 4, 0)
-    _version = (1, 0, 0)
+    _version = (1, 0, 1)
 
     @classmethod
     def get_requirements(cls) -> List[interfaces.configuration.RequirementInterface]:
@@ -28,10 +31,13 @@ class VmaYaraScan(interfaces.plugins.PluginInterface):
                 optional=True,
             ),
             requirements.PluginRequirement(
-                name="pslist", plugin=pslist.PsList, version=(2, 0, 0)
+                name="pslist", plugin=pslist.PsList, version=(3, 0, 0)
             ),
             requirements.PluginRequirement(
                 name="yarascan", plugin=yarascan.YaraScan, version=(2, 0, 0)
+            ),
+            requirements.VersionRequirement(
+                name="yarascanner", component=yarascan.YaraScanner, version=(2, 0, 0)
             ),
             requirements.ModuleRequirement(
                 name="kernel",
@@ -50,6 +56,8 @@ class VmaYaraScan(interfaces.plugins.PluginInterface):
         # use yarascan to parse the yara options provided and create the rules
         rules = yarascan.YaraScan.process_yara_options(dict(self.config))
 
+        sanity_check = 1024 * 1024 * 1024  # 1 GB
+
         # filter based on the pid option if provided
         filter_func = pslist.PsList.create_pid_filter(self.config.get("pid", None))
         for task in pslist.PsList.list_tasks(
@@ -66,29 +74,36 @@ class VmaYaraScan(interfaces.plugins.PluginInterface):
             # get the proc_layer object from the context
             proc_layer = self.context.layers[proc_layer_name]
 
-            for start, end in self.get_vma_maps(task):
-                for match in rules.match(
-                    data=proc_layer.read(start, end - start, True)
+            max_vma_size = 0
+            vma_maps_to_scan = []
+            for start, size in self.get_vma_maps(task):
+                if size > sanity_check:
+                    vollog.debug(
+                        f"VMA at 0x{start:x} over sanity-check size, not scanning"
+                    )
+                    continue
+                max_vma_size = max(max_vma_size, size)
+                vma_maps_to_scan.append((start, size))
+
+            if not vma_maps_to_scan:
+                vollog.warning(f"No VMAs were found for task {task.tgid}, not scanning")
+                continue
+
+            scanner = yarascan.YaraScanner(rules=rules)
+            scanner.chunk_size = max_vma_size
+
+            # scan the VMA data (in one contiguous block) with the yarascanner
+            for start, size in vma_maps_to_scan:
+                for offset, rule_name, name, value in scanner(
+                    proc_layer.read(start, size, pad=True), start
                 ):
-                    if yarascan.YaraScan.yara_returns_instances():
-                        for match_string in match.strings:
-                            for instance in match_string.instances:
-                                yield 0, (
-                                    format_hints.Hex(instance.offset + start),
-                                    task.UniqueProcessId,
-                                    match.rule,
-                                    match_string.identifier,
-                                    instance.matched_data,
-                                )
-                    else:
-                        for offset, name, value in match.strings:
-                            yield 0, (
-                                format_hints.Hex(offset + start),
-                                task.tgid,
-                                match.rule,
-                                name,
-                                value,
-                            )
+                    yield 0, (
+                        format_hints.Hex(offset),
+                        task.tgid,
+                        rule_name,
+                        name,
+                        value,
+                    )
 
     @staticmethod
     def get_vma_maps(

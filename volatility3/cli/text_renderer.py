@@ -51,8 +51,10 @@ def hex_bytes_as_text(value: bytes, width: int = 16) -> str:
 
     # Handle leftovers when the lenght is not mutiple of width
     if printables:
-        output += "   " * (width - len(printables))
+        padding = width - len(printables)
+        output += "   " * (padding)
         output += printables
+        output += " " * (padding)
 
     return output
 

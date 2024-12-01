@@ -4,7 +4,7 @@
 
 from typing import List
 import logging
-from volatility3.framework import constants, interfaces
+from volatility3.framework import interfaces
 from volatility3.framework import renderers, symbols
 from volatility3.framework.configuration import requirements
 from volatility3.framework.objects import utility
@@ -18,6 +18,7 @@ class Malfind(interfaces.plugins.PluginInterface):
     """Lists process memory ranges that potentially contain injected code."""
 
     _required_framework_version = (2, 0, 0)
+    _version = (1, 0, 1)
 
     @classmethod
     def get_requirements(cls) -> List[interfaces.configuration.RequirementInterface]:
@@ -28,7 +29,7 @@ class Malfind(interfaces.plugins.PluginInterface):
                 architectures=["Intel32", "Intel64"],
             ),
             requirements.PluginRequirement(
-                name="pslist", plugin=pslist.PsList, version=(2, 0, 0)
+                name="pslist", plugin=pslist.PsList, version=(3, 0, 0)
             ),
             requirements.ListRequirement(
                 name="pid",
