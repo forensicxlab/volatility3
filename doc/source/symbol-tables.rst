@@ -9,7 +9,7 @@ How Volatility finds symbol tables
 
 All files are stored as JSON data, they can be in pure JSON files as ``.json``, or compressed as ``.json.gz`` or ``.json.xz``.
 Volatility will automatically decompress them on use.  It will also cache their contents (compressed) when used, located
-under the user's home directory, in :file:`.cache/volatility3`, along with other useful data.  The cache directory currently
+under the user's home directory, in :file:`.cache/volatility3` or when `XDG_CACHE_HOME` is set in :file:`${XDG_CACHE_HOME}/volatility3`, along with other useful data.  The cache directory currently
 cannot be altered.
 
 Symbol table JSON files live, by default, under the :file:`volatility3/symbols` directory.  The symbols directory is

@@ -49,7 +49,7 @@ class VolShell(cli.CommandLine):
     python terminal with all the volatility support calls available.
     """
 
-    CLI_NAME = "volshell"
+    CLI_NAME = os.path.basename(sys.argv[0])  # volshell
 
     def __init__(self):
         super().__init__()
@@ -159,11 +159,20 @@ class VolShell(cli.CommandLine):
             default=constants.CACHE_PATH,
             type=str,
         )
-        parser.add_argument(
+        isf_group = parser.add_mutually_exclusive_group()
+        isf_group.add_argument(
             "--offline",
             help="Do not search online for additional JSON files",
             default=False,
             action="store_true",
+        )
+        isf_group.add_argument(
+            "-u",
+            "--remote-isf-url",
+            metavar="URL",
+            help="Search online for ISF json files",
+            default=constants.REMOTE_ISF_URL,
+            type=str,
         )
 
         # Volshell specific flags
@@ -236,6 +245,8 @@ class VolShell(cli.CommandLine):
 
         if partial_args.offline:
             constants.OFFLINE = partial_args.offline
+        elif partial_args.remote_isf_url:
+            constants.REMOTE_ISF_URL = partial_args.remote_isf_url
 
         # Do the initialization
         ctx = contexts.Context()  # Construct a blank context

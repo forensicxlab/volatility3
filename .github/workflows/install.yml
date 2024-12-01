@@ -6,8 +6,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+<<<<<<< HEAD
         host: [ubuntu-latest, windows-latest]
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+=======
+        host: [ ubuntu-latest, windows-latest ]
+        python-version: [ "3.8", "3.9", "3.10", "3.11" ]
+>>>>>>> develop
     steps:
       - uses: actions/checkout@v4
 
@@ -19,6 +24,7 @@ jobs:
       - name: Setup python-pip
         run: python -m pip install --upgrade pip
 
+<<<<<<< HEAD
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
@@ -28,3 +34,10 @@ jobs:
 
       - name: Run volatility3
         run: vol --help
+=======
+    - name: Install volatility3
+      run: pip install .
+
+    - name: Run volatility3
+      run: vol --help
+>>>>>>> develop

@@ -6,6 +6,7 @@
 Stores all the constant values that are generally fixed throughout
 volatility This includes default scanning block sizes, etc.
 """
+
 import enum
 import os.path
 import sys
@@ -65,7 +66,11 @@ LOGLEVEL_VVV = 7
 LOGLEVEL_VVVV = 6
 """Logging level for four levels of detail: -vvvvvv"""
 
-CACHE_PATH = os.path.join(os.path.expanduser("~"), ".cache", "volatility3")
+
+CACHE_PATH = os.path.join(
+    os.environ.get("XDG_CACHE_HOME") or os.path.join(os.path.expanduser("~"), ".cache"),
+    "volatility3",
+)
 """Default path to store cached data"""
 
 SQLITE_CACHE_PERIOD = "-3 days"
@@ -134,4 +139,5 @@ def __getattr__(name):
     ]:
         warnings.warn(f"{name} is deprecated", FutureWarning)
         return globals()[f"{deprecated_tag}{name}"]
-    return None
+
+    return getattr(__import__(__name__), name)

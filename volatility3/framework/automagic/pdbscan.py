@@ -209,10 +209,8 @@ class KernelPDBScanner(interfaces.automagic.AutomagicInterface):
             try:
                 kvp = vlayer.mapping(kvo, 0)
                 if any(
-                    [
-                        (p == kernel["mz_offset"] and layer_name == physical_layer_name)
-                        for (_, _, p, _, layer_name) in kvp
-                    ]
+                    (p == kernel["mz_offset"] and layer_name == physical_layer_name)
+                    for (_, _, p, _, layer_name) in kvp
                 ):
                     return (virtual_layer_name, kvo, kernel)
                 else:
@@ -272,6 +270,10 @@ class KernelPDBScanner(interfaces.automagic.AutomagicInterface):
             progress_callback=progress_callback,
         )
         for kernel in kernels:
+            vollog.log(
+                constants.LOGLEVEL_VVVV,
+                f"Testing potential kernel for {kernel.get('pdb_name', 'Unknown')} at {kernel.get('signature_offset', -1):x} with MZ offset at {(kernel.get('mz_offset', -1) or -1):x}",
+            )
             valid_kernel = test_kernel(physical_layer_name, virtual_layer_name, kernel)
             if valid_kernel is not None:
                 break

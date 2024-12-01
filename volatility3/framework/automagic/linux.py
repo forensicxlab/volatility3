@@ -27,16 +27,6 @@ class LinuxIntelStacker(interfaces.automagic.StackerLayerInterface):
         progress_callback: constants.ProgressCallback = None,
     ) -> Optional[interfaces.layers.DataLayerInterface]:
         """Attempts to identify linux within this layer."""
-        # Version check the SQlite cache
-        required = (1, 0, 0)
-        if not requirements.VersionRequirement.matches_required(
-            required, symbol_cache.SqliteCache.version
-        ):
-            vollog.info(
-                f"SQLiteCache version not suitable: required {required} found {symbol_cache.SqliteCache.version}"
-            )
-            return None
-
         # Bail out by default unless we can stack properly
         layer = context.layers[layer_name]
         join = interfaces.configuration.path_join
@@ -46,12 +36,9 @@ class LinuxIntelStacker(interfaces.automagic.StackerLayerInterface):
         if isinstance(layer, intel.Intel):
             return None
 
-        identifiers_path = os.path.join(
-            constants.CACHE_PATH, constants.IDENTIFIERS_FILENAME
+        linux_banners = symbol_cache.load_cache_manager().get_identifier_dictionary(
+            operating_system="linux"
         )
-        linux_banners = symbol_cache.SqliteCache(
-            identifiers_path
-        ).get_identifier_dictionary(operating_system="linux")
         # If we have no banners, don't bother scanning
         if not linux_banners:
             vollog.info(
@@ -80,14 +67,14 @@ class LinuxIntelStacker(interfaces.automagic.StackerLayerInterface):
                     context, table_name, layer_name, progress_callback=progress_callback
                 )
 
-                layer_class: Type = intel.Intel
                 if "init_top_pgt" in table.symbols:
-                    layer_class = intel.Intel32e
+                    layer_class = intel.LinuxIntel32e
                     dtb_symbol_name = "init_top_pgt"
                 elif "init_level4_pgt" in table.symbols:
-                    layer_class = intel.Intel32e
+                    layer_class = intel.LinuxIntel32e
                     dtb_symbol_name = "init_level4_pgt"
                 else:
+                    layer_class = intel.LinuxIntel
                     dtb_symbol_name = "swapper_pg_dir"
 
                 dtb = cls.virtual_to_physical_address(

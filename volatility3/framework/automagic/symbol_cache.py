@@ -492,6 +492,21 @@ class SqliteCache(CacheManagerInterface):
         return output
 
 
+def load_cache_manager(cache_file: Optional[str] = None) -> CacheManagerInterface:
+    """Loads a cache manager based on a specific cache file"""
+    if cache_file is None:
+        cache_file = os.path.join(constants.CACHE_PATH, constants.IDENTIFIERS_FILENAME)
+    # Different implementations of cache
+    if not os.path.exists(cache_file):
+        raise ValueError("Non-existant cache file provided")
+    with open(cache_file, "rb") as fp:
+        header = fp.read(4)
+        if header not in [b"SQLi"]:
+            raise ValueError("Identifier file not in recognized format")
+    # Currently only one choice, so use that
+    return SqliteCache(cache_file)
+
+
 ### Automagic
 
 

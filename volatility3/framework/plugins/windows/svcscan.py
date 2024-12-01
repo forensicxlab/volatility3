@@ -20,7 +20,7 @@ from volatility3.framework.renderers import format_hints
 from volatility3.framework.symbols import intermed
 from volatility3.framework.symbols.windows import versions
 from volatility3.framework.symbols.windows.extensions import services as services_types
-from volatility3.plugins.windows import poolscanner, pslist, vadyarascan
+from volatility3.plugins.windows import poolscanner, pslist
 from volatility3.plugins.windows.registry import hivelist
 
 vollog = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ class SvcScan(interfaces.plugins.PluginInterface):
     """Scans for windows services."""
 
     _required_framework_version = (2, 0, 0)
-    _version = (3, 0, 0)
+    _version = (3, 0, 1)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -59,9 +59,6 @@ class SvcScan(interfaces.plugins.PluginInterface):
             ),
             requirements.PluginRequirement(
                 name="poolscanner", plugin=poolscanner.PoolScanner, version=(1, 0, 0)
-            ),
-            requirements.PluginRequirement(
-                name="vadyarascan", plugin=vadyarascan.VadYaraScan, version=(1, 0, 0)
             ),
             requirements.PluginRequirement(
                 name="hivelist", plugin=hivelist.HiveList, version=(1, 0, 0)
@@ -317,10 +314,17 @@ class SvcScan(interfaces.plugins.PluginInterface):
 
             layer = context.layers[proc_layer_name]
 
+            # get process sections for scanning
+            sections = []
+            for vad in task.get_vad_root().traverse():
+                base = vad.get_start()
+                if vad.get_size():
+                    sections.append((base, vad.get_size()))
+
             for offset in layer.scan(
                 context=context,
                 scanner=scanners.BytesScanner(needle=service_tag),
-                sections=vadyarascan.VadYaraScan.get_vad_maps(task),
+                sections=sections,
             ):
                 if not is_vista_or_later:
                     service_record = context.object(

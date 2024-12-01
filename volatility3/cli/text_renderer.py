@@ -12,7 +12,7 @@ from functools import wraps
 from typing import Any, Callable, Dict, List, Tuple
 from volatility3.cli import text_filter
 
-from volatility3.framework import interfaces, renderers
+from volatility3.framework import exceptions, interfaces, renderers
 from volatility3.framework.renderers import format_hints
 
 vollog = logging.getLogger(__name__)
@@ -141,6 +141,30 @@ class CLIRenderer(interfaces.renderers.Renderer):
     name = "unnamed"
     structured_output = False
     filter: text_filter.CLIFilter = None
+    column_hide_list: list = None
+
+    def ignored_columns(
+        self,
+        grid: interfaces.renderers.TreeGrid,
+    ) -> List[interfaces.renderers.Column]:
+        ignored_column_list = []
+        if self.column_hide_list:
+            for column in grid.columns:
+                accept = True
+                for column_prefix in self.column_hide_list:
+                    if column.name.lower().startswith(column_prefix.lower()):
+                        accept = False
+                if not accept:
+                    ignored_column_list.append(column)
+        elif self.column_hide_list is None:
+            return []
+
+        if len(ignored_column_list) == len(grid.columns):
+            raise exceptions.RenderException("No visible columns to render")
+        vollog.info(
+            f"Hiding columns: {[column.name for column in ignored_column_list]}"
+        )
+        return ignored_column_list
 
 
 class QuickTextRenderer(CLIRenderer):
@@ -173,13 +197,23 @@ class QuickTextRenderer(CLIRenderer):
         outfd = sys.stdout
 
         line = []
+        ignore_columns = self.ignored_columns(grid)
         for column in grid.columns:
             # Ignore the type because namedtuples don't realize they have accessible attributes
-            line.append(f"{column.name}")
+            if column not in ignore_columns:
+                line.append(f"{column.name}")
         outfd.write("\n{}\n".format("\t".join(line)))
 
         def visitor(node: interfaces.renderers.TreeNode, accumulator):
-            if self.filter and self.filter.filter(node.values):
+            line = []
+            for column_index, column in enumerate(grid.columns):
+                renderer = self._type_renderers.get(
+                    column.type, self._type_renderers["default"]
+                )
+                if column not in ignore_columns:
+                    line.append(renderer(node.values[column_index]))
+
+            if self.filter and self.filter.filter(line):
                 return accumulator
 
             accumulator.write("\n")
@@ -188,13 +222,6 @@ class QuickTextRenderer(CLIRenderer):
                 "*" * max(0, node.path_depth - 1)
                 + ("" if (node.path_depth <= 1) else " ")
             )
-            line = []
-            for column_index in range(len(grid.columns)):
-                column = grid.columns[column_index]
-                renderer = self._type_renderers.get(
-                    column.type, self._type_renderers["default"]
-                )
-                line.append(renderer(node.values[column_index]))
             accumulator.write("{}".format("\t".join(line)))
             accumulator.flush()
             return accumulator
@@ -245,11 +272,13 @@ class CSVRenderer(CLIRenderer):
             grid: The TreeGrid object to render
         """
         outfd = sys.stdout
+        ignore_columns = self.ignored_columns(grid)
 
         header_list = ["TreeDepth"]
         for column in grid.columns:
             # Ignore the type because namedtuples don't realize they have accessible attributes
-            header_list.append(f"{column.name}")
+            if column not in ignore_columns:
+                header_list.append(f"{column.name}")
 
         writer = csv.DictWriter(
             outfd, header_list, lineterminator="\n", escapechar="\\"
@@ -259,12 +288,20 @@ class CSVRenderer(CLIRenderer):
         def visitor(node: interfaces.renderers.TreeNode, accumulator):
             # Nodes always have a path value, giving them a path_depth of at least 1, we use max just in case
             row = {"TreeDepth": str(max(0, node.path_depth - 1))}
-            for column_index in range(len(grid.columns)):
-                column = grid.columns[column_index]
+            line = []
+            for column_index, column in enumerate(grid.columns):
                 renderer = self._type_renderers.get(
                     column.type, self._type_renderers["default"]
                 )
                 row[f"{column.name}"] = renderer(node.values[column_index])
+                if column not in ignore_columns:
+                    line.append(row[f"{column.name}"])
+                else:
+                    del row[f"{column.name}"]
+
+            if self.filter and self.filter.filter(line):
+                return accumulator
+
             accumulator.writerow(row)
             return accumulator
 
@@ -298,6 +335,7 @@ class PrettyTextRenderer(CLIRenderer):
 
         sys.stderr.write("Formatting...\n")
 
+        ignore_columns = self.ignored_columns(grid)
         display_alignment = ">"
         column_separator = " | "
 
@@ -317,12 +355,9 @@ class PrettyTextRenderer(CLIRenderer):
                 max_column_widths.get(tree_indent_column, 0), node.path_depth
             )
 
-            if self.filter and self.filter.filter(node.values):
-                return accumulator
-
             line = {}
-            for column_index in range(len(grid.columns)):
-                column = grid.columns[column_index]
+            rendered_line = []
+            for column_index, column in enumerate(grid.columns):
                 renderer = self._type_renderers.get(
                     column.type, self._type_renderers["default"]
                 )
@@ -333,7 +368,13 @@ class PrettyTextRenderer(CLIRenderer):
                 max_column_widths[column.name] = max(
                     max_column_widths.get(column.name, len(column.name)), field_width
                 )
-                line[column] = data.split("\n")
+                if column not in ignore_columns:
+                    line[column] = data.split("\n")
+                rendered_line.append(data)
+
+            if self.filter and self.filter.filter(rendered_line):
+                return accumulator
+
             accumulator.append((node.path_depth, line))
             return accumulator
 
@@ -347,44 +388,49 @@ class PrettyTextRenderer(CLIRenderer):
         format_string_list = [
             "{0:<" + str(max_column_widths.get(tree_indent_column, 0)) + "s}"
         ]
-        for column_index in range(len(grid.columns)):
-            column = grid.columns[column_index]
-            format_string_list.append(
-                "{"
-                + str(column_index + 1)
-                + ":"
-                + display_alignment
-                + str(max_column_widths[column.name])
-                + "s}"
-            )
+        column_offset = 0
+        for column_index, column in enumerate(grid.columns):
+            if column not in ignore_columns:
+                format_string_list.append(
+                    "{"
+                    + str(column_index - column_offset + 1)
+                    + ":"
+                    + display_alignment
+                    + str(max_column_widths[column.name])
+                    + "s}"
+                )
+            else:
+                column_offset += 1
 
         format_string = column_separator.join(format_string_list) + "\n"
 
-        column_titles = [""] + [column.name for column in grid.columns]
+        column_titles = [""] + [
+            column.name for column in grid.columns if column not in ignore_columns
+        ]
+
         outfd.write(format_string.format(*column_titles))
         for depth, line in final_output:
             nums_line = max([len(line[column]) for column in line])
             for column in line:
-                line[column] = line[column] + ([""] * (nums_line - len(line[column])))
+                if column in ignore_columns:
+                    del line[column]
+                else:
+                    line[column] = line[column] + (
+                        [""] * (nums_line - len(line[column]))
+                    )
             for index in range(nums_line):
                 if index == 0:
                     outfd.write(
                         format_string.format(
                             "*" * depth,
-                            *[
-                                self.tab_stop(line[column][index])
-                                for column in grid.columns
-                            ],
+                            *[self.tab_stop(line[column][index]) for column in line],
                         )
                     )
                 else:
                     outfd.write(
                         format_string.format(
                             " " * depth,
-                            *[
-                                self.tab_stop(line[column][index])
-                                for column in grid.columns
-                            ],
+                            *[self.tab_stop(line[column][index]) for column in line],
                         )
                     )
 
@@ -430,6 +476,8 @@ class JsonRenderer(CLIRenderer):
             List[interfaces.renderers.TreeNode],
         ] = ({}, [])
 
+        ignore_columns = self.ignored_columns(grid)
+
         def visitor(
             node: interfaces.renderers.TreeNode,
             accumulator: Tuple[Dict[str, Dict[str, Any]], List[Dict[str, Any]]],
@@ -437,8 +485,10 @@ class JsonRenderer(CLIRenderer):
             # Nodes always have a path value, giving them a path_depth of at least 1, we use max just in case
             acc_map, final_tree = accumulator
             node_dict: Dict[str, Any] = {"__children": []}
-            for column_index in range(len(grid.columns)):
-                column = grid.columns[column_index]
+            line = []
+            for column_index, column in enumerate(grid.columns):
+                if column in ignore_columns:
+                    continue
                 renderer = self._type_renderers.get(
                     column.type, self._type_renderers["default"]
                 )
@@ -446,6 +496,11 @@ class JsonRenderer(CLIRenderer):
                 if isinstance(data, interfaces.renderers.BaseAbsentValue):
                     data = None
                 node_dict[column.name] = data
+                line.append(data)
+
+            if self.filter and self.filter.filter(line):
+                return accumulator
+
             if node.parent:
                 acc_map[node.parent.path]["__children"].append(node_dict)
             else:

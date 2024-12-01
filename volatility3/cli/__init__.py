@@ -88,7 +88,7 @@ class MuteProgress(PrintedProgress):
 class CommandLine:
     """Constructs a command-line interface object for users to run plugins."""
 
-    CLI_NAME = "volatility"
+    CLI_NAME = os.path.basename(sys.argv[0])  # vol or volatility
 
     def __init__(self):
         self.setup_logging()
@@ -235,17 +235,34 @@ class CommandLine:
             default=constants.CACHE_PATH,
             type=str,
         )
-        parser.add_argument(
+        isf_group = parser.add_mutually_exclusive_group()
+        isf_group.add_argument(
             "--offline",
             help="Do not search online for additional JSON files",
             default=False,
             action="store_true",
+        )
+        isf_group.add_argument(
+            "-u",
+            "--remote-isf-url",
+            metavar="URL",
+            help="Search online for ISF json files",
+            default=constants.REMOTE_ISF_URL,
+            type=str,
         )
         parser.add_argument(
             "--filters",
             help="List of filters to apply to the output (in the form of [+-]columname,pattern[!])",
             default=[],
             action="append",
+        )
+        parser.add_argument(
+            "--hide-columns",
+            help="Case-insensitive space separated list of prefixes to determine which columns to hide in the output if provided",
+            default=None,
+            action="extend",
+            nargs="*",
+            type=str,
         )
 
         parser.set_defaults(**default_config)
@@ -313,6 +330,8 @@ class CommandLine:
 
         if partial_args.offline:
             constants.OFFLINE = partial_args.offline
+        elif partial_args.remote_isf_url:
+            constants.REMOTE_ISF_URL = partial_args.remote_isf_url
 
         # Do the initialization
         ctx = contexts.Context()  # Construct a blank context
@@ -345,10 +364,13 @@ class CommandLine:
                 self.CLI_NAME
             ),
             action=volargparse.HelpfulSubparserAction,
+            metavar="PLUGIN",
         )
         for plugin in sorted(plugin_list):
             plugin_parser = subparser.add_parser(
-                plugin, help=plugin_list[plugin].__doc__
+                plugin,
+                help=plugin_list[plugin].__doc__,
+                description=plugin_list[plugin].__doc__,
             )
             self.populate_requirements_argparse(plugin_parser, plugin_list[plugin])
 
@@ -364,7 +386,9 @@ class CommandLine:
             argcomplete.autocomplete(parser)
         args = parser.parse_args()
         if args.plugin is None:
-            parser.error("Please select a plugin to run")
+            parser.error(
+                f"Please select a plugin to run (see '{self.CLI_NAME} --help' for options"
+            )
 
         vollog.log(
             constants.LOGLEVEL_VVV, f"Cache directory used: {constants.CACHE_PATH}"
@@ -477,6 +501,7 @@ class CommandLine:
                 grid = constructed.run()
                 renderer = renderers[args.renderer]()
                 renderer.filter = text_filter.CLIFilter(grid, args.filters)
+                renderer.column_hide_list = args.hide_columns
                 renderer.render(grid)
         except exceptions.VolatilityException as excp:
             self.process_exceptions(excp)
@@ -604,6 +629,10 @@ class CommandLine:
             caused_by = [
                 "A required python module is not installed (install the module and re-run)"
             ]
+        elif isinstance(excp, exceptions.RenderException):
+            general = "Volatility experienced an issue when rendering the output:"
+            detail = f"{excp}"
+            caused_by = ["An invalid renderer option, such as no visible columns"]
         else:
             general = "Volatility encountered an unexpected situation."
             detail = ""

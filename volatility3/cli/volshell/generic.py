@@ -14,7 +14,7 @@ from urllib import parse, request
 from volatility3.cli import text_renderer, volshell
 from volatility3.framework import exceptions, interfaces, objects, plugins, renderers
 from volatility3.framework.configuration import requirements
-from volatility3.framework.layers import intel, physical, resources
+from volatility3.framework.layers import intel, physical, resources, scanners
 
 try:
     import capstone
@@ -28,6 +28,8 @@ class Volshell(interfaces.plugins.PluginInterface):
     """Shell environment to directly interact with a memory image."""
 
     _required_framework_version = (2, 0, 0)
+
+    DEFAULT_NUM_DISPLAY_BYTES = 128
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -58,7 +60,7 @@ class Volshell(interfaces.plugins.PluginInterface):
         ]
 
     def run(
-        self, additional_locals: Dict[str, Any] = None
+        self, additional_locals: Dict[str, Any] = {}
     ) -> interfaces.renderers.TreeGrid:
         """Runs the interactive volshell plugin.
 
@@ -94,7 +96,10 @@ class Volshell(interfaces.plugins.PluginInterface):
 """
 
         sys.ps1 = f"({self.current_layer}) >>> "
-        self.__console = code.InteractiveConsole(locals=self._construct_locals_dict())
+        # Dict self._construct_locals_dict() will have priority on keys
+        combined_locals = additional_locals.copy()
+        combined_locals.update(self._construct_locals_dict())
+        self.__console = code.InteractiveConsole(locals=combined_locals)
         # Since we have to do work to add the option only once for all different modes of volshell, we can't
         # rely on the default having been set
         if self.config.get("script", None) is not None:
@@ -112,7 +117,7 @@ class Volshell(interfaces.plugins.PluginInterface):
 
         variables = []
         print("\nMethods:")
-        for aliases, item in self.construct_locals():
+        for aliases, item in sorted(self.construct_locals()):
             name = ", ".join(aliases)
             if item.__doc__ and callable(item):
                 print(f"* {name}")
@@ -125,8 +130,7 @@ class Volshell(interfaces.plugins.PluginInterface):
             print(f"  {var}")
 
     def construct_locals(self) -> List[Tuple[List[str], Any]]:
-        """Returns a dictionary listing the functions to be added to the
-        environment."""
+        """Returns a listing of the functions to be added to the environment."""
         return [
             (["dt", "display_type"], self.display_type),
             (["db", "display_bytes"], self.display_bytes),
@@ -147,6 +151,7 @@ class Volshell(interfaces.plugins.PluginInterface):
             (["cc", "create_configurable"], self.create_configurable),
             (["lf", "load_file"], self.load_file),
             (["rs", "run_script"], self.run_script),
+            (["rx", "regex_scan"], self.regex_scan),
         ]
 
     def _construct_locals_dict(self) -> Dict[str, Any]:
@@ -266,27 +271,52 @@ class Volshell(interfaces.plugins.PluginInterface):
             self.__current_kernel_name = kernel_name
         print(f"Current kernel : {self.current_kernel_name}")
 
-    def display_bytes(self, offset, count=128, layer_name=None):
+    def display_bytes(self, offset, count=DEFAULT_NUM_DISPLAY_BYTES, layer_name=None):
         """Displays byte values and ASCII characters"""
         remaining_data = self._read_data(offset, count=count, layer_name=layer_name)
         self._display_data(offset, remaining_data)
 
-    def display_quadwords(self, offset, count=128, layer_name=None):
+    def display_quadwords(
+        self, offset, count=DEFAULT_NUM_DISPLAY_BYTES, layer_name=None
+    ):
         """Displays quad-word values (8 bytes) and corresponding ASCII characters"""
         remaining_data = self._read_data(offset, count=count, layer_name=layer_name)
         self._display_data(offset, remaining_data, format_string="Q")
 
-    def display_doublewords(self, offset, count=128, layer_name=None):
+    def display_doublewords(
+        self, offset, count=DEFAULT_NUM_DISPLAY_BYTES, layer_name=None
+    ):
         """Displays double-word values (4 bytes) and corresponding ASCII characters"""
         remaining_data = self._read_data(offset, count=count, layer_name=layer_name)
         self._display_data(offset, remaining_data, format_string="I")
 
-    def display_words(self, offset, count=128, layer_name=None):
+    def display_words(self, offset, count=DEFAULT_NUM_DISPLAY_BYTES, layer_name=None):
         """Displays word values (2 bytes) and corresponding ASCII characters"""
         remaining_data = self._read_data(offset, count=count, layer_name=layer_name)
         self._display_data(offset, remaining_data, format_string="H")
 
-    def disassemble(self, offset, count=128, layer_name=None, architecture=None):
+    def regex_scan(self, pattern, count=DEFAULT_NUM_DISPLAY_BYTES, layer_name=None):
+        """Scans for regex pattern in layer using RegExScanner."""
+        if not isinstance(pattern, bytes):
+            raise TypeError("pattern must be bytes, e.g. rx(b'pattern')")
+        layer_name_to_scan = layer_name or self.current_layer
+        for offset in self.context.layers[layer_name_to_scan].scan(
+            scanner=scanners.RegExScanner(pattern),
+            context=self.context,
+        ):
+            remaining_data = self._read_data(
+                offset, count=count, layer_name=layer_name_to_scan
+            )
+            self._display_data(offset, remaining_data)
+            print("")
+
+    def disassemble(
+        self,
+        offset,
+        count=DEFAULT_NUM_DISPLAY_BYTES,
+        layer_name=None,
+        architecture=None,
+    ):
         """Disassembles a number of instructions from the code at offset"""
         remaining_data = self._read_data(offset, count=count, layer_name=layer_name)
         if not has_capstone:
@@ -529,7 +559,7 @@ class Volshell(interfaces.plugins.PluginInterface):
                 val, interfaces.configuration.BasicTypes
             ) and not isinstance(val, list):
                 if not isinstance(val, list) or all(
-                    [isinstance(x, interfaces.configuration.BasicTypes) for x in val]
+                    isinstance(x, interfaces.configuration.BasicTypes) for x in val
                 ):
                     raise TypeError(
                         "Configurable values must be simple types (int, bool, str, bytes)"

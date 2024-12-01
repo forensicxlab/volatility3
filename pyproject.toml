@@ -6,15 +6,52 @@ readme = "README.md"
 authors = [
     { name = "Volatility Foundation", email = "volatility@volatilityfoundation.org" },
 ]
-requires-python = ">=3.7.3"
+requires-python = ">=3.8.0"
 license = { text = "VSL" }
-dynamic = ["dependencies", "optional-dependencies", "version"]
+dynamic = ["version"]
+
+dependencies = [
+    "pefile>=2024.8.26",
+]
+
+[project.optional-dependencies]
+full = [
+    "yara-python>=4.5.1,<5",
+    "capstone>=5.0.3,<6",
+    "pycryptodome>=3.21.0,<4",
+    "leechcorepyc>=2.19.2,<3; sys_platform != 'darwin'",
+]
+
+cloud = [
+    "gcsfs>=2024.10.0",
+    "s3fs>=2024.10.0",
+]
+
+dev = [
+    "volatility3[full,cloud]",
+    "jsonschema>=4.23.0,<5",
+    "pyinstaller>=6.11.0,<7",
+    "pyinstaller-hooks-contrib>=2024.9",
+]
+
+test = [
+    "volatility3[dev]",
+    "pytest>=8.3.3,<9",
+    "yara-x>=0.10.0,<1",
+]
+
+docs = [
+    "volatility3[dev]",
+    "sphinx>=8.0.0,<7",
+    "sphinx-autodoc-typehints>=2.5.0,<3",
+    "sphinx-rtd-theme>=3.0.1,<4",
+]
 
 [project.urls]
-Homepage = "https://github.com/volatilityfoundation/volatility3/"
-"Bug Tracker" = "https://github.com/volatilityfoundation/volatility3/issues"
-Documentation = "https://volatility3.readthedocs.io/"
-"Source Code" = "https://github.com/volatilityfoundation/volatility3"
+homepage = "https://github.com/volatilityfoundation/volatility3/"
+documentation = "https://volatility3.readthedocs.io/"
+repository = "https://github.com/volatilityfoundation/volatility3"
+issues = "https://github.com/volatilityfoundation/volatility3/issues"
 
 [project.scripts]
 vol = "volatility3.cli:main"
@@ -22,10 +59,16 @@ volshell = "volatility3.cli.volshell:main"
 
 [tool.setuptools.dynamic]
 version = { attr = "volatility3.framework.constants._version.PACKAGE_VERSION" }
-dependencies = { file = "requirements-minimal.txt" }
 
 [tool.setuptools.packages.find]
 include = ["volatility3*"]
+
+[tool.mypy]
+mypy_path = "./stubs"
+show_traceback = true
+
+[tool.mypy.overrides]
+ignore_missing_imports = true
 
 [build-system]
 requires = ["setuptools>=68"]

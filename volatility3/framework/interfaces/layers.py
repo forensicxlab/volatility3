@@ -136,7 +136,7 @@ class DataLayerInterface(
     def minimum_address(self) -> int:
         """Returns the minimum valid address of the space."""
 
-    @property
+    @functools.cached_property
     def address_mask(self) -> int:
         """Returns a mask which encapsulates all the active bits of an address
         for this layer."""

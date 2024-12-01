@@ -170,6 +170,9 @@ class RegistryHive(linear.LinearlyMappedLayer):
         return_list specifies whether the return result will be a single
         node (default) or a list of nodes from root to the current node
         (if return_list is true).
+
+        Raises RegistryFormatException if an invalid structure is encountered
+        Raises KeyError if the key is not found
         """
         root_node = self.get_node(self.root_cell_offset)
         if not root_node.vol.type_name.endswith(constants.BANG + "_CM_KEY_NODE"):
@@ -318,10 +321,8 @@ class RegistryHive(linear.LinearlyMappedLayer):
         with contextlib.suppress(exceptions.InvalidAddressException):
             # Pass this to the lower layers for now
             return all(
-                [
-                    self.context.layers[layer].is_valid(offset, length)
-                    for (_, _, offset, length, layer) in self.mapping(offset, length)
-                ]
+                self.context.layers[layer].is_valid(offset, length)
+                for (_, _, offset, length, layer) in self.mapping(offset, length)
             )
         return False
 

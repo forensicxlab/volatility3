@@ -13,11 +13,11 @@ from volatility3.plugins.windows import pslist, threads, vadinfo, thrdscan
 vollog = logging.getLogger(__name__)
 
 
-class SupsiciousThreads(interfaces.plugins.PluginInterface):
+class SuspiciousThreads(interfaces.plugins.PluginInterface):
     """Lists suspicious userland process threads"""
 
     _required_framework_version = (2, 4, 0)
-    _version = (2, 0, 0)
+    _version = (2, 0, 1)
 
     @classmethod
     def get_requirements(cls) -> List[interfaces.configuration.RequirementInterface]:

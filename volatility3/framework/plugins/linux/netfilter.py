@@ -174,7 +174,7 @@ class AbstractNetfilter(ABC):
             priority [int]: Priority
             hook_ops_hook [int]: Hook address
             module_name [str]: Linux kernel module name
-            hooked [bool]: hooked?
+            hooked [bool]: "True" if the network stack has been hijacked
         """
         for netns, net in self.get_net_namespaces():
             for proto_idx, proto_name, hook_idx, hook_name in self._proto_hook_loop():
@@ -190,7 +190,7 @@ class AbstractNetfilter(ABC):
                         priority = int(hook_ops.priority)
                         hook_ops_hook = hook_ops.hook
                         module_name = self.get_module_name_for_address(hook_ops_hook)
-                        hooked = module_name is not None
+                        hooked = module_name is None
 
                         yield netns, proto_name, hook_name, priority, hook_ops_hook, module_name, hooked
 
@@ -675,7 +675,7 @@ class Netfilter(interfaces.plugins.PluginInterface):
 
     _required_framework_version = (2, 0, 0)
 
-    _version = (1, 0, 0)
+    _version = (1, 1, 0)
 
     _required_linuxutils_version = (2, 1, 0)
     _required_lsmod_version = (2, 0, 0)
@@ -714,7 +714,7 @@ class Netfilter(interfaces.plugins.PluginInterface):
             hook_name,
             priority,
             format_hints.Hex(hook_func),
-            module_name,
+            module_name or renderers.NotAvailableValue(),
             str(hooked),
         )
 
