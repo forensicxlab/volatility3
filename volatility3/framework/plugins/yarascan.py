@@ -117,7 +117,7 @@ class YaraScan(plugins.PluginInterface):
             requirements.TranslationLayerRequirement(
                 name="primary",
                 description="Memory layer for the kernel",
-                architectures=["Intel32", "Intel64"],
+                architectures=["Intel32", "Intel64", "AArch64"],
             ),
             requirements.VersionRequirement(
                 name="yarascanner",

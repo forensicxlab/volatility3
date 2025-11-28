@@ -8,7 +8,7 @@ import datetime
 import struct
 from typing import List
 
-from volatility3.framework import constants, renderers, symbols, interfaces
+from volatility3.framework import constants, interfaces, renderers, symbols
 from volatility3.framework.configuration import requirements
 from volatility3.framework.interfaces import plugins
 from volatility3.framework.layers import scanners
@@ -30,7 +30,7 @@ class Bash(plugins.PluginInterface, timeliner.TimeLinerInterface):
             requirements.ModuleRequirement(
                 name="kernel",
                 description="Linux kernel",
-                architectures=["Intel32", "Intel64"],
+                architectures=["Intel32", "Intel64", "AArch64"],
             ),
             requirements.VersionRequirement(
                 name="pslist", component=pslist.PsList, version=(4, 0, 0)

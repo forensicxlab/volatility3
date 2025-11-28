@@ -2,8 +2,7 @@
 # which is available at https://www.volatilityfoundation.org/license/vsl-v1.0
 #
 import datetime
-from typing import List, Tuple, Iterable
-
+from typing import Iterable, List, Tuple
 
 from volatility3.framework import interfaces, renderers
 from volatility3.framework.configuration import requirements
@@ -23,7 +22,7 @@ class Boottime(interfaces.plugins.PluginInterface, timeliner.TimeLinerInterface)
             requirements.ModuleRequirement(
                 name="kernel",
                 description="Linux kernel",
-                architectures=["Intel32", "Intel64"],
+                architectures=["Intel32", "Intel64", "AArch64"],
             ),
             requirements.VersionRequirement(
                 name="timeliner",

@@ -1,18 +1,18 @@
 # This file is Copyright 2024 Volatility Foundation and licensed under the Volatility Software License 1.0
 # which is available at https://www.volatilityfoundation.org/license/vsl-v1.0
 #
-import logging
-import datetime
 import dataclasses
-from typing import List, Callable, Tuple, Iterable
+import datetime
+import logging
+from typing import Callable, Iterable, List, Tuple
 
-from volatility3.framework import renderers, interfaces, constants
+from volatility3.framework import constants, interfaces, renderers
 from volatility3.framework.configuration import requirements
 from volatility3.framework.interfaces import plugins
 from volatility3.framework.objects import utility
 from volatility3.framework.symbols import linux
-from volatility3.plugins.linux import pslist
 from volatility3.plugins import timeliner
+from volatility3.plugins.linux import pslist
 
 vollog = logging.getLogger(__name__)
 
@@ -118,7 +118,7 @@ class Lsof(plugins.PluginInterface, timeliner.TimeLinerInterface):
             requirements.ModuleRequirement(
                 name="kernel",
                 description="Linux kernel",
-                architectures=["Intel32", "Intel64"],
+                architectures=["Intel32", "Intel64", "AArch64"],
             ),
             requirements.VersionRequirement(
                 name="pslist", component=pslist.PsList, version=(4, 0, 0)
