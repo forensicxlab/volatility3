@@ -29,7 +29,7 @@ class ModuleExtract(interfaces.plugins.PluginInterface):
             requirements.ModuleRequirement(
                 name="kernel",
                 description="Windows kernel",
-                architectures=["Intel32", "Intel64"],
+                architectures=["Intel32", "Intel64", "AArch64"],
             ),
             requirements.IntRequirement(
                 name="base",

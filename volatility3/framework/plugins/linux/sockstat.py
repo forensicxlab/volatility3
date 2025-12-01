@@ -458,7 +458,7 @@ class Sockstat(plugins.PluginInterface):
             requirements.ModuleRequirement(
                 name="kernel",
                 description="Linux kernel",
-                architectures=["Intel32", "Intel64"],
+                architectures=["Intel32", "Intel64", "AArch64"],
             ),
             requirements.VersionRequirement(
                 name="SockHandlers", component=SockHandlers, version=(4, 0, 0)
